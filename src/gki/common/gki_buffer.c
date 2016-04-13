@@ -712,7 +712,7 @@ void GKI_send_msg (UINT8 task_id, UINT8 mbox, void *msg)
     tGKI_COM_CB *p_cb = &gki_cb.com;
 
     /* If task non-existant or not started, drop buffer */
-    if ((task_id >= GKI_MAX_TASKS) || (mbox >= NUM_TASK_MBOX) || (p_cb->OSRdyTbl[task_id] == TASK_DEAD))
+/*MOCKAIC*/ if ((task_id >= GKI_MAX_TASKS) || (mbox >= NUM_TASK_MBOX) /*|| (p_cb->OSRdyTbl[task_id] == TASK_DEAD)*/)
     {
         GKI_exception(GKI_ERROR_SEND_MSG_BAD_DEST, "Sending to unknown dest");
         GKI_freebuf (msg);

@@ -752,8 +752,8 @@ void NFC_Init (tHAL_NFC_ENTRY *p_hal_entry_tbl)
     nfc_cb.nci_ctrl_size    = NCI_CTRL_INIT_SIZE;
 
     rw_init ();
-    ce_init ();
-    llcp_init ();
+    /*MOCKAIC*///ce_init ();
+    /*MOCKAIC*///llcp_init ();
     NFC_SET_MAX_CONN_DEFAULT ();
 }
 

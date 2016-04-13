@@ -22,7 +22,7 @@
 #include "dyn_mem.h"
 
 #ifndef GKI_DEBUG
-#define GKI_DEBUG	FALSE
+#define GKI_DEBUG	TRUE
 #endif
 
 /* Task States: (For OSRdyTbl) */

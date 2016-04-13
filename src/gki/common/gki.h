@@ -35,7 +35,7 @@
 #include "bt_types.h"
 
 /* Uncomment this line for verbose GKI debugging and buffer tracking */
-/*#define GKI_BUFFER_DEBUG   TRUE*/
+#define GKI_BUFFER_DEBUG   TRUE
 
 
 /* Error codes */

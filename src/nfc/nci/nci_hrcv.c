@@ -272,6 +272,8 @@ void nci_proc_rf_management_ntf (BT_HDR *p_msg)
 
     default:
         NFC_TRACE_ERROR1 ("unknown opcode:0x%x", op_code);
+            /*MOCKAIC*/ op_code= NCI_MSG_RF_INTF_ACTIVATED;
+            /*MOCKAIC*/ nfc_ncif_proc_activate (pp, len);
         break;
     }
 }

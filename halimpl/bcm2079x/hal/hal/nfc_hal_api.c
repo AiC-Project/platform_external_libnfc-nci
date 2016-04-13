@@ -235,11 +235,12 @@ BOOLEAN HAL_NfcPreDiscover (void)
 
     NFC_HDR *p_msg;
 
-    HAL_TRACE_API0 ("HAL_NfcPreDiscover ()");
+    HAL_TRACE_API0 ("HAL_NfcPreDiscover () A");
     if (nfc_hal_cb.pre_discover_done == FALSE)
     {
-        nfc_hal_cb.pre_discover_done    = TRUE;
-        if (p_nfc_hal_pre_discover_cfg && *p_nfc_hal_pre_discover_cfg)
+        HAL_TRACE_API0 ("HAL_NfcPreDiscover () B");
+        //nfc_hal_cb.pre_discover_done    = TRUE;
+        //if (p_nfc_hal_pre_discover_cfg && *p_nfc_hal_pre_discover_cfg)
         {
             status                          = TRUE;
             /* Send message to NFC_HAL_TASK */

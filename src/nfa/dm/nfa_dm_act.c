@@ -447,12 +447,13 @@ BOOLEAN nfa_dm_enable (tNFA_DM_MSG *p_data)
         nfa_dm_cb.p_conn_cback  = p_data->enable.p_conn_cback;
 
         /* Enable NFC stack */
+        /*MOCKAIC*/ nfa_sys_enable_subsystems ();
         NFC_Enable (nfa_dm_nfc_response_cback);
     }
     else
     {
         NFA_TRACE_ERROR0 ("nfa_dm_enable: ERROR ALREADY ENABLED.");
-        dm_cback_data.status = NFA_STATUS_ALREADY_STARTED;
+        /*MOCKAIC*/ dm_cback_data.status = NFA_STATUS_OK;//_ALREADY_STARTED;
         (*(p_data->enable.p_dm_cback)) (NFA_DM_ENABLE_EVT, &dm_cback_data);
     }
 
@@ -800,9 +801,10 @@ BOOLEAN nfa_dm_act_deactivate (tNFA_DM_MSG *p_data)
     NFA_TRACE_ERROR0 ("nfa_dm_act_deactivate (): invalid protocol, mode or state");
 
     /* Notify error to application */
-    conn_evt.status = NFA_STATUS_FAILED;
-    nfa_dm_conn_cback_event_notify (NFA_DEACTIVATE_FAIL_EVT, &conn_evt);
-
+    /*MOCKAIC*///conn_evt.status = NFA_STATUS_FAILED;
+    /*MOCKAIC*///nfa_dm_conn_cback_event_notify (NFA_DEACTIVATE_FAIL_EVT, &conn_evt);
+    conn_evt.status = NFA_STATUS_OK;
+    nfa_dm_conn_cback_event_notify (NFA_DEACTIVATE_TYPE_DISCOVERY, &conn_evt);
     return (TRUE);
 }
 

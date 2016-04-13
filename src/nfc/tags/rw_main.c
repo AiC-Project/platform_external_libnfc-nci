@@ -219,7 +219,9 @@ tNFC_STATUS RW_SetActivatedTagType (tNFC_ACTIVATE_DEVT *p_activate_params, tRW_C
     }
 
     /* Reset tag-specific area of control block */
-    memset (&rw_cb.tcb, 0, sizeof (tRW_TCB));
+    /*MOCKAIC*///memset (&rw_cb.tcb, 0, sizeof (tRW_TCB));
+    /*MOCKAIC*/p_activate_params->rf_tech_param.mode = NFC_DISCOVERY_TYPE_POLL_A;
+    /*MOCKAIC*/p_activate_params->rf_tech_param.param.pa.sel_rsp = NFC_SEL_RES_NFC_FORUM_T2T;
 
 #if (defined (RW_STATS_INCLUDED) && (RW_STATS_INCLUDED == TRUE))
     /* Reset RW stats */

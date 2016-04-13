@@ -398,17 +398,20 @@ void nfa_rw_handle_sleep_wakeup_rsp (tNFC_STATUS status)
     {
         NFA_TRACE_DEBUG0("nfa_rw_handle_sleep_wakeup_rsp; Attempt to woke up tag from HALT State is complete");
         /* Tag is wakeup from HALT state */
-        if (nfa_rw_cb.flags & NFA_RW_FL_ACTIVATED)
+/*MOCKAIC*///if (nfa_rw_cb.flags & NFA_RW_FL_ACTIVATED)
         {
+             /*MOCKAIC*/nfa_rw_cb.activated_tech_mode = NFC_DISCOVERY_TYPE_POLL_A;
+             /*MOCKAIC*/nfa_rw_cb.protocol = NFC_PROTOCOL_T2T;
+             /*MOCKAIC*/nfa_rw_cb.pa_sel_res = NFC_SEL_RES_NFC_FORUM_T2T;
             NFA_TRACE_DEBUG0("nfa_rw_handle_sleep_wakeup_rsp; Handle the NACK rsp received now");
             /* Initialize control block */
             activate_params.protocol                        = nfa_rw_cb.protocol;
             activate_params.rf_tech_param.param.pa.sel_rsp  = nfa_rw_cb.pa_sel_res;
             activate_params.rf_tech_param.mode              = nfa_rw_cb.activated_tech_mode;
 
-            if (  (nfa_rw_cb.activated_tech_mode == NFC_DISCOVERY_TYPE_POLL_A)
-                &&(nfa_rw_cb.protocol == NFC_PROTOCOL_T2T)
-                &&(nfa_rw_cb.pa_sel_res == NFC_SEL_RES_NFC_FORUM_T2T)  )
+/*MOCKAIC*///if (  (nfa_rw_cb.activated_tech_mode == NFC_DISCOVERY_TYPE_POLL_A)
+/*MOCKAIC*///    &&(nfa_rw_cb.protocol == NFC_PROTOCOL_T2T)
+/*MOCKAIC*///    &&(nfa_rw_cb.pa_sel_res == NFC_SEL_RES_NFC_FORUM_T2T)  )
             {
                 /* Initialize RW module */
                 if ((RW_SetActivatedTagType (&activate_params, nfa_rw_cback)) != NFC_STATUS_OK)
@@ -424,8 +427,11 @@ void nfa_rw_handle_sleep_wakeup_rsp (tNFC_STATUS status)
                     return;
                 }
 
-                nfa_rw_cb.rw_data.status = NFC_STATUS_FAILED;
-                event = nfa_rw_cb.halt_event;
+                /*MOCKAIC*///nfa_rw_cb.rw_data.status = NFC_STATUS_FAILED;
+                /*MOCKAIC*///event = nfa_rw_cb.halt_event;
+                /*MOCKAIC*/nfa_rw_cb.rw_data.status = NFC_STATUS_OK;
+                /*MOCKAIC*/event = RW_T2T_READ_CPLT_EVT;
+
 
                 if (nfa_rw_cb.cur_op == NFA_RW_OP_PRESENCE_CHECK)
                     nfa_rw_cb.rw_data.status = status;
@@ -433,21 +439,23 @@ void nfa_rw_handle_sleep_wakeup_rsp (tNFC_STATUS status)
                 if ((status == NFA_STATUS_FAILED) && (nfa_rw_cb.halt_event == RW_T2T_NDEF_DETECT_EVT))
                     nfa_rw_cb.halt_event = RW_T2T_MAX_EVT;
 
-                nfa_rw_handle_t2t_evt (event, &nfa_rw_cb.rw_data);
+                /*MOCKAIC*///nfa_rw_handle_t2t_evt (event, &nfa_rw_cb.rw_data);
             }
         }
-        else
-        {
-            NFA_TRACE_DEBUG0("nfa_rw_handle_sleep_wakeup_rsp; Tag is already deactivated, just drop the NACK from tag");
-            if (nfa_rw_cb.halt_event == RW_T2T_READ_CPLT_EVT)
-            {
-                if (nfa_rw_cb.rw_data.data.p_data)
-                    GKI_freebuf(nfa_rw_cb.rw_data.data.p_data);
-                nfa_rw_cb.rw_data.data.p_data = NULL;
-            }
-            nfa_rw_cb.halt_event = RW_T2T_MAX_EVT;
-            nfa_rw_cb.skip_dyn_locks = FALSE;
-        }
+/*MOCKAIC beg*/
+//         else
+//         {
+//             NFA_TRACE_DEBUG0("nfa_rw_handle_sleep_wakeup_rsp; Tag is already deactivated, just drop the NACK from tag");
+//             if (nfa_rw_cb.halt_event == RW_T2T_READ_CPLT_EVT)
+//             {
+//                 if (nfa_rw_cb.rw_data.data.p_data)
+//                     GKI_freebuf(nfa_rw_cb.rw_data.data.p_data);
+//                 nfa_rw_cb.rw_data.data.p_data = NULL;
+//             }
+//             nfa_rw_cb.halt_event = RW_T2T_MAX_EVT;
+//             nfa_rw_cb.skip_dyn_locks = FALSE;
+//         }
+/*MOCKAIC end*/
     }
     else
     {
@@ -742,20 +750,20 @@ static void nfa_rw_handle_t2t_evt (tRW_EVENT event, tRW_DATA *p_rw_data)
         break;
 
     case RW_T2T_NDEF_DETECT_EVT:            /* NDEF detection complete */
-        if (  (p_rw_data->status == NFC_STATUS_OK)
-            ||((p_rw_data->status == NFC_STATUS_FAILED) && ((p_rw_data->ndef.flags == NFA_RW_NDEF_FL_UNKNOWN) || (nfa_rw_cb.halt_event == RW_T2T_MAX_EVT)))
-            ||(nfa_rw_cb.skip_dyn_locks == TRUE)  )
+/*MOCKAIC*///        if (  (p_rw_data->status == NFC_STATUS_OK)
+/*MOCKAIC*///            ||((p_rw_data->status == NFC_STATUS_FAILED) && ((p_rw_data->ndef.flags == NFA_RW_NDEF_FL_UNKNOWN) || (nfa_rw_cb.halt_event == RW_T2T_MAX_EVT)))
+/*MOCKAIC*///            ||(nfa_rw_cb.skip_dyn_locks == TRUE)  )
         {
             /* NDEF Detection is complete */
             nfa_rw_cb.skip_dyn_locks = FALSE;
             nfa_rw_handle_ndef_detect (event, p_rw_data);
         }
-        else
-        {
-            /* Try to detect NDEF again, this time without reading dynamic lock bytes */
-            nfa_rw_cb.skip_dyn_locks = TRUE;
-            nfa_rw_detect_ndef (NULL);
-        }
+/*MOCKAIC*///        else
+/*MOCKAIC*///        {
+/*MOCKAIC*///            /* Try to detect NDEF again, this time without reading dynamic lock bytes */
+/*MOCKAIC*///            nfa_rw_cb.skip_dyn_locks = TRUE;
+/*MOCKAIC*///            nfa_rw_detect_ndef (NULL);
+/*MOCKAIC*///        }
         break;
 
     case RW_T2T_TLV_DETECT_EVT:             /* Lock control/Mem/Prop tlv detection complete */
@@ -1441,6 +1449,7 @@ static tNFC_STATUS nfa_rw_start_ndef_detection(void)
     tNFC_PROTOCOL protocol = nfa_rw_cb.protocol;
     tNFC_STATUS status = NFC_STATUS_FAILED;
 
+    /*MOCKAIC*/protocol = NFC_PROTOCOL_T2T ;
     switch (protocol)
     {
     case NFC_PROTOCOL_T1T:    /* Type1Tag    - NFC-A */
@@ -1448,7 +1457,7 @@ static tNFC_STATUS nfa_rw_start_ndef_detection(void)
         break;
 
     case NFC_PROTOCOL_T2T:   /* Type2Tag    - NFC-A */
-        if (nfa_rw_cb.pa_sel_res == NFC_SEL_RES_NFC_FORUM_T2T)
+        /*MOCKAIC*///if (nfa_rw_cb.pa_sel_res == NFC_SEL_RES_NFC_FORUM_T2T)
         {
             status = RW_T2tDetectNDef(nfa_rw_cb.skip_dyn_locks);
         }
@@ -1523,7 +1532,9 @@ static tNFC_STATUS nfa_rw_start_ndef_read(void)
         status = RW_T1tReadNDef(nfa_rw_cb.p_ndef_buf,(UINT16)nfa_rw_cb.ndef_cur_size);
         break;
 
+/*MOCKAIC*/case 0xff : //mock tnf=2 -> smartposter
     case NFC_PROTOCOL_T2T:   /* Type2Tag    - NFC-A */
+        /*MOCKAIC*/ nfa_rw_cb.pa_sel_res = NFC_SEL_RES_NFC_FORUM_T2T ;
         if (nfa_rw_cb.pa_sel_res == NFC_SEL_RES_NFC_FORUM_T2T)
         {
             status = RW_T2tReadNDef(nfa_rw_cb.p_ndef_buf,(UINT16)nfa_rw_cb.ndef_cur_size);
@@ -1564,12 +1575,12 @@ static BOOLEAN nfa_rw_detect_ndef(tNFA_RW_MSG *p_data)
 
     if ((conn_evt_data.ndef_detect.status = nfa_rw_start_ndef_detection()) != NFC_STATUS_OK)
     {
-        /* Command complete - perform cleanup, notify app */
-        nfa_rw_command_complete();
-        conn_evt_data.ndef_detect.cur_size = 0;
-        conn_evt_data.ndef_detect.max_size = 0;
-        conn_evt_data.ndef_detect.flags    = RW_NDEF_FL_UNKNOWN;
-        nfa_dm_act_conn_cback_notify(NFA_NDEF_DETECT_EVT, &conn_evt_data);
+/*MOCKAIC*/          /* Command complete - perform cleanup, notify app */
+/*MOCKAIC*/          nfa_rw_command_complete();
+/*MOCKAIC*/          conn_evt_data.ndef_detect.cur_size = 0;
+/*MOCKAIC*/          conn_evt_data.ndef_detect.max_size = 0;
+/*MOCKAIC*/          conn_evt_data.ndef_detect.flags    = RW_NDEF_FL_UNKNOWN;
+/*MOCKAIC*/          nfa_dm_act_conn_cback_notify(NFA_NDEF_DETECT_EVT, &conn_evt_data);
     }
 
     return TRUE;
@@ -1654,30 +1665,30 @@ static BOOLEAN nfa_rw_read_ndef(tNFA_RW_MSG *p_data)
     NFA_TRACE_DEBUG0("nfa_rw_read_ndef");
 
     /* Check if ndef detection has been performed yet */
-    if (nfa_rw_cb.ndef_st == NFA_RW_NDEF_ST_UNKNOWN)
-    {
-        /* Perform ndef detection first */
-        status = nfa_rw_start_ndef_detection();
-    }
-    else if (nfa_rw_cb.ndef_st == NFA_RW_NDEF_ST_FALSE)
-    {
-        /* Tag is not NDEF */
-        status = NFA_STATUS_FAILED;
-    }
-    else
-    {
-        /* Perform the NDEF read operation */
+ /*MOCKAIC*///    if (nfa_rw_cb.ndef_st == NFA_RW_NDEF_ST_UNKNOWN)
+ /*MOCKAIC*///   {
+/*MOCKAIC*///         /* Perform ndef detection first */
+/*MOCKAIC*///         status = nfa_rw_start_ndef_detection();
+/*MOCKAIC*///     }
+/*MOCKAIC*///     else if (nfa_rw_cb.ndef_st == NFA_RW_NDEF_ST_FALSE)
+/*MOCKAIC*///     {
+/*MOCKAIC*///         /* Tag is not NDEF */
+/*MOCKAIC*///         status = NFA_STATUS_FAILED;
+/*MOCKAIC*///     }
+/*MOCKAIC*///     else
+/*MOCKAIC*///     {
+/*MOCKAIC*///         /* Perform the NDEF read operation */
         status = nfa_rw_start_ndef_read();
-    }
+/*MOCKAIC*///     }
 
     /* Handle failure */
-    if (status != NFA_STATUS_OK)
-    {
-        /* Command complete - perform cleanup, notify app */
-        nfa_rw_command_complete();
-        conn_evt_data.status = status;
-        nfa_dm_act_conn_cback_notify(NFA_READ_CPLT_EVT, &conn_evt_data);
-    }
+/*MOCKAIC*///     if (status != NFA_STATUS_OK)
+/*MOCKAIC*///     {
+/*MOCKAIC*///         /* Command complete - perform cleanup, notify app */
+/*MOCKAIC*///         nfa_rw_command_complete();
+/*MOCKAIC*///         conn_evt_data.status = status;
+/*MOCKAIC*///         nfa_dm_act_conn_cback_notify(NFA_READ_CPLT_EVT, &conn_evt_data);
+/*MOCKAIC*///     }
 
 
     return TRUE;
@@ -2710,26 +2721,28 @@ BOOLEAN nfa_rw_handle_op_req (tNFA_RW_MSG *p_data)
     BOOLEAN freebuf = TRUE;
     UINT16  presence_check_start_delay = 0;
 
-    /* Check if activated */
-    if (!(nfa_rw_cb.flags & NFA_RW_FL_ACTIVATED))
-    {
-        NFA_TRACE_ERROR0("nfa_rw_handle_op_req: not activated");
-        return TRUE;
-    }
-    /* Check if currently busy with another API call */
-    else if (nfa_rw_cb.flags & NFA_RW_FL_API_BUSY)
-    {
-        return (nfa_rw_op_req_while_busy(p_data));
-    }
-    /* Check if currently busy with auto-presence check */
-    else if (nfa_rw_cb.flags & NFA_RW_FL_AUTO_PRESENCE_CHECK_BUSY)
-    {
-        /* Cache the command (will be handled once auto-presence check is completed) */
-        NFA_TRACE_DEBUG1("Deferring operation %i until after auto-presence check is completed", p_data->op_req.op);
-        nfa_rw_cb.p_pending_msg = p_data;
-        nfa_rw_cb.flags |= NFA_RW_FL_API_BUSY;
-        return (FALSE);
-    }
+/*MOCKAIC beg*/
+//     /* Check if activated */
+//     if (!(nfa_rw_cb.flags & NFA_RW_FL_ACTIVATED))
+//     {
+//         NFA_TRACE_ERROR0("nfa_rw_handle_op_req: not activated");
+//         return TRUE;
+//     }
+//     /* Check if currently busy with another API call */
+//     else if (nfa_rw_cb.flags & NFA_RW_FL_API_BUSY)
+//     {
+//         return (nfa_rw_op_req_while_busy(p_data));
+//     }
+//     /* Check if currently busy with auto-presence check */
+//     else if (nfa_rw_cb.flags & NFA_RW_FL_AUTO_PRESENCE_CHECK_BUSY)
+//     {
+//         /* Cache the command (will be handled once auto-presence check is completed) */
+//         NFA_TRACE_DEBUG1("Deferring operation %i until after auto-presence check is completed", p_data->op_req.op);
+//         nfa_rw_cb.p_pending_msg = p_data;
+//         nfa_rw_cb.flags |= NFA_RW_FL_API_BUSY;
+//         return (FALSE);
+//     }
+/*MOCKAIC end*/
 
     NFA_TRACE_DEBUG1("nfa_rw_handle_op_req: op=0x%02x", p_data->op_req.op);
 

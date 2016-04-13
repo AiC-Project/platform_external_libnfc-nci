@@ -185,6 +185,7 @@ tNFA_STATUS nfa_rw_send_raw_frame (BT_HDR *p_data)
 BOOLEAN nfa_rw_handle_event(BT_HDR *p_msg)
 {
     UINT16 act_idx;
+#define BT_TRACE_VERBOSE TRUE
 
 #if (BT_TRACE_VERBOSE == TRUE)
     NFA_TRACE_EVENT3 ("nfa_rw_handle_event event: %s (0x%02x), flags: %08x", nfa_rw_evt_2_str (p_msg->event), p_msg->event, nfa_rw_cb.flags);

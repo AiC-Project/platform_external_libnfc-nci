@@ -744,6 +744,7 @@ static void nfa_dm_disc_discovery_cback (tNFC_DISCOVER_EVT event, tNFC_DISCOVER 
     tNFA_DM_RF_DISC_SM_EVENT dm_disc_event = NFA_DM_DISC_SM_MAX_EVENT;
 
     NFA_TRACE_DEBUG1 ("nfa_dm_disc_discovery_cback (): event:0x%X", event);
+    /*MOCKAIC*/event = NFC_ACTIVATE_DEVT;
 
     switch (event)
     {
@@ -939,11 +940,12 @@ void nfa_dm_start_rf_discover (void)
     UINT8                   num_params, xx;
 
     NFA_TRACE_DEBUG0 ("nfa_dm_start_rf_discover ()");
+    /*MOCKAIC*/  nfa_dm_disc_notify_started (NFA_STATUS_OK);
     /* Make sure that RF discovery was enabled, or some app has exclusive control */
     if (  (!(nfa_dm_cb.disc_cb.disc_flags & NFA_DM_DISC_FLAGS_ENABLED))
         &&(nfa_dm_cb.disc_cb.excl_disc_entry.in_use == FALSE)  )
     {
-        return;
+        /*MOCKAIC*///return;
     }
 
     /* get listen mode routing table for technology */
@@ -1095,9 +1097,9 @@ void nfa_dm_start_rf_discover (void)
 
         /* register callback to get interface error NTF */
         NFC_SetStaticRfCback (nfa_dm_disc_data_cback);
-    }
-    else
-    {
+/*MOCKAIC*/          }
+/*MOCKAIC*/          else
+/*MOCKAIC*/          {
         /* RF discovery is started but there is no valid technology or protocol to discover */
         nfa_dm_disc_notify_started (NFA_STATUS_OK);
     }
@@ -1110,6 +1112,7 @@ void nfa_dm_start_rf_discover (void)
         nfa_dm_cb.disc_cb.activated_protocol = NFA_PROTOCOL_INVALID;
         nfa_dm_cb.disc_cb.activated_handle   = NFA_HANDLE_INVALID;
     }
+    /*MOCKAIC*/ nfa_rw_handle_sleep_wakeup_rsp (NFC_STATUS_OK);
 }
 
 /*******************************************************************************
@@ -1950,14 +1953,16 @@ static void nfa_dm_disc_sm_discovery (tNFA_DM_RF_DISC_SM_EVENT event,
         nfa_dm_notify_discovery (p_data);
         break;
     case NFA_DM_RF_INTF_ACTIVATED_NTF:
-        if (nfa_dm_cb.disc_cb.disc_flags & NFA_DM_DISC_FLAGS_W4_RSP)
-        {
-            NFA_TRACE_DEBUG0 ("RF Activated while waiting for deactivation RSP");
-            /* it's race condition. DH has to wait for deactivation NTF */
-            nfa_dm_cb.disc_cb.disc_flags |= NFA_DM_DISC_FLAGS_W4_NTF;
-        }
-        else
-        {
+//MOCKAIC beg//
+//        if (nfa_dm_cb.disc_cb.disc_flags & NFA_DM_DISC_FLAGS_W4_RSP)
+//         {
+//             NFA_TRACE_DEBUG0 ("RF Activated while waiting for deactivation RSP");
+//             /* it's race condition. DH has to wait for deactivation NTF */
+//             nfa_dm_cb.disc_cb.disc_flags |= NFA_DM_DISC_FLAGS_W4_NTF;
+//         }
+//         else
+//         {
+//MOCKAIC end//
             if (p_data->nfc_discover.activate.intf_param.type == NFC_INTERFACE_EE_DIRECT_RF)
             {
                 nfa_dm_disc_new_state (NFA_DM_RFST_LISTEN_ACTIVE);
@@ -1981,7 +1986,7 @@ static void nfa_dm_disc_sm_discovery (tNFA_DM_RF_DISC_SM_EVENT event,
                 nfa_dm_cb.disc_cb.disc_flags |= (NFA_DM_DISC_FLAGS_W4_RSP|NFA_DM_DISC_FLAGS_W4_NTF);
                 NFC_Deactivate (NFA_DEACTIVATE_TYPE_IDLE);
             }
-        }
+        //}
         break;
 
     case NFA_DM_RF_DEACTIVATE_NTF:
@@ -2551,6 +2556,7 @@ void nfa_dm_disc_sm_execute (tNFA_DM_RF_DISC_SM_EVENT event, tNFA_DM_RF_DISC_DAT
     NFA_TRACE_DEBUG3 ("nfa_dm_disc_sm_execute(): state: %d, event:%d disc_flags: 0x%x",
                        nfa_dm_cb.disc_cb.disc_state, event, nfa_dm_cb.disc_cb.disc_flags);
 #endif
+    /*MOCKAIC*/nfa_dm_cb.disc_cb.disc_state = NFA_DM_RFST_DISCOVERY ;
 
     switch (nfa_dm_cb.disc_cb.disc_state)
     {

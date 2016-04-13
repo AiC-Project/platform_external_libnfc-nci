@@ -23,7 +23,7 @@
  *  Broadcom-specific features to the Android framework.
  *
  ******************************************************************************/
-#define LOG_TAG "NfcNciHal"
+#define LOG_TAG "bcmNfcNciHal"
 #include "OverrideLog.h"
 #include "HalAdaptation.h"
 #include "SyncEvent.h"

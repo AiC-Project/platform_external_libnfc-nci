@@ -295,7 +295,7 @@ void nfc_ncif_check_cmd_queue (BT_HDR *p_buf)
         }
     }
 
-    if (nfc_cb.nci_cmd_window == NCI_MAX_CMD_WINDOW)
+    /*MOCKAIC*///if (nfc_cb.nci_cmd_window == NCI_MAX_CMD_WINDOW)
     {
         /* the command queue must be empty now */
         if (nfc_cb.flags & NFC_FL_CONTROL_REQUESTED)
@@ -779,6 +779,7 @@ void nfc_ncif_proc_activate (UINT8 *p, UINT8 len)
     evt_data.activate.rf_disc_id    = *p++;
     p_intf->type                    = *p++;
     evt_data.activate.protocol      = *p++;
+    /*MOCKAIC*/ evt_data.activate.protocol = NCI_PROTOCOL_T2T;
 
     if (evt_data.activate.protocol == NCI_PROTOCOL_18092_ACTIVE)
         evt_data.activate.protocol = NCI_PROTOCOL_NFC_DEP;
@@ -1429,7 +1430,7 @@ void nfc_data_event (tNFC_CONN_CB * p_cb)
                  */
                 if ((p_cb->act_protocol >= NCI_PROTOCOL_T1T) && (p_cb->act_protocol <= NCI_PROTOCOL_T3T))
                 {
-                    p_evt->len--;
+                    /*MOCKAIC*///p_evt->len--;
                     p                = (UINT8 *) (p_evt + 1);
                     data_cevt.status = *(p + p_evt->offset + p_evt->len);
                 }
@@ -1466,10 +1467,24 @@ void nfc_ncif_proc_data (BT_HDR *p_msg)
     pp   = (UINT8 *) (p_msg+1) + p_msg->offset;
     NFC_TRACE_DEBUG3 ("nfc_ncif_proc_data 0x%02x%02x%02x", pp[0], pp[1], pp[2]);
     NCI_DATA_PRS_HDR (pp, pbf, cid, len);
-    p_cb = nfc_find_conn_cb_by_conn_id (cid);
-    if (p_cb && (p_msg->len >= NCI_DATA_HDR_SIZE))
+
+    /*MOCKAIC beg*/
+    NFC_TRACE_DEBUG3 ("nfc_ncif_proc_data pbf:0x%02 cid:0x%02 msglen=%d", pbf, cid , p_msg->len );
     {
-        NFC_TRACE_DEBUG1 ("nfc_ncif_proc_data len:%d", len);
+        NFC_TRACE_DEBUG0 ("nfc_ncif_proc_data len p_cb init ...");
+        p_cb = &nfc_cb.conn_cb[NFC_RF_CONN_ID];
+        p_cb->init_credits           = p_cb->num_buff = 0;
+        nfc_set_conn_id (p_cb, NFC_RF_CONN_ID);
+
+        cid = NFC_RF_CONN_ID ;
+        p_cb = nfc_find_conn_cb_by_conn_id (cid);
+        pbf = 0 ;
+
+        if (p_cb ){
+                    NFC_TRACE_DEBUG0 ("nfc_ncif_proc_data len p_cb OK !");
+            if(p_msg->len >= NCI_DATA_HDR_SIZE){
+                    NFC_TRACE_DEBUG3 ("nfc_ncif_proc_data len:%d %d %d", len, p_msg->len, NCI_DATA_HDR_SIZE);
+    /*MOCKAIC end*/
         if (len > 0)
         {
             p_msg->layer_specific       = 0;
@@ -1549,6 +1564,8 @@ void nfc_ncif_proc_data (BT_HDR *p_msg)
             return;
         }
         /* else an empty data packet*/
+        }
+	  }
     }
     GKI_freebuf (p_msg);
 }

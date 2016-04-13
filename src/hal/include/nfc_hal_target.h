@@ -144,6 +144,10 @@
 #define USERIAL_NFC_PORT                        (USERIAL_PORT_6)
 #endif
 
+#ifndef USERIAL_NFC_CMD
+#define USERIAL_NFC_CMD                        (USERIAL_PORT_7)
+#endif
+
 /* Restore NFCC baud rate to default on shutdown if baud rate was updated */
 #ifndef NFC_HAL_RESTORE_BAUD_ON_SHUTDOWN
 #define NFC_HAL_RESTORE_BAUD_ON_SHUTDOWN        TRUE

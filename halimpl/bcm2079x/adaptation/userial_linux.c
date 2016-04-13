@@ -15,6 +15,14 @@
  *  limitations under the License.
  *
  ******************************************************************************/
+#include <netinet/tcp.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <sys/select.h>
+#include <sys/socket.h>
+#include <sys/errno.h>
+#include <arpa/inet.h>
+
 
 #include "OverrideLog.h"
 #include <string.h>
@@ -46,6 +54,10 @@
 #ifndef BTE_APPL_MAX_USERIAL_DEV_NAME
 #define BTE_APPL_MAX_USERIAL_DEV_NAME           (256)
 #endif
+
+
+#define USERIAL_DEBUG TRUE
+
 extern UINT8 appl_trace_level;
 
 /* Mapping of USERIAL_PORT_x to linux */
@@ -693,6 +705,194 @@ done:
 extern BOOLEAN gki_chk_buf_damage(void *p_buf);
 static int sRxLength = 0;
 
+static int start_server(int port) {
+    int server = -1;
+    struct sockaddr_in srv_addr;
+    long haddr;
+
+    bzero(&srv_addr, sizeof(srv_addr));
+    srv_addr.sin_family = AF_INET;
+    srv_addr.sin_addr.s_addr = INADDR_ANY;
+    srv_addr.sin_port = htons(port);
+
+    if ((server = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        ALOGE(" Start_server : batteryUnable to create socket\n");
+        return -1;
+    }
+
+    int yes = 1;
+    setsockopt(server, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+
+    if (bind(server, (struct sockaddr *)&srv_addr, sizeof(srv_addr)) < 0) {
+        ALOGE(" Start_server : batteryUnable to bind socket, errno=%d\n", errno);
+        return -1;
+    }
+
+    return server;
+}
+
+static int wait_for_client(int server) {
+    int client = -1;
+
+    if (listen(server, 1) < 0) {
+        SLOGE("Unable to listen to socket, errno=%d\n", errno);
+        return -1;
+    }
+
+    SLOGE("wait_for_client\n");
+    client = accept(server, NULL, 0);
+
+    if (client < 0) {
+        SLOGE("Unable to accept socket for main conection, errno=%d\n", errno);
+        return -1;
+    }
+
+    return client;
+}
+
+/*******************************************************************************
+ **
+ ** Function           unfcd_read_thread
+ **
+ ** Description        entry point of read thread.
+ **
+ ** Output Parameter   None
+ **
+ ** Returns            0
+ **
+ *******************************************************************************/
+UINT32 unfcd_read_thread(UINT32 arg)
+{
+    int rx_length;
+    int error_count = 0;
+    int bErrorReported = 0;
+    int iMaxError = MAX_ERROR;
+    BT_HDR *p_buf = NULL;
+
+        int server = -1;
+    int client = -1;
+
+    worker_thread1 = pthread_self();
+
+    ALOGD( "start unfcd_read_thread, id=%lx", worker_thread1);
+    _timeout = POLL_TIMEOUT;
+
+    if ((server = start_server(UNFCD_PORT)) == -1) {
+        ALOGE("unfcd_read_thread : start_server unable to create socket\n");
+        return 0;
+    }
+
+   // Listen for main connection
+    while ((client = wait_for_client(server)) != -1)
+    {
+        BT_HDR *p_buf;
+        UINT8 *current_packet;
+            ALOGE( "unfcd_read_thread(): try GKI_getpoolbuf\n");
+        if ((p_buf = (BT_HDR *) GKI_getpoolbuf( USERIAL_POOL_ID ) )!= NULL)
+        {
+            p_buf->offset = 0;
+            p_buf->layer_specific = 0;
+
+            current_packet = (UINT8 *) (p_buf + 1);
+            //rx_length = my_read(linux_cb.sock, current_packet, READ_LIMIT);
+            //Peek into the socket and get the packet size
+            ALOGE( "unfcd_read_thread(): receiving\n");
+            ALOGE("unfcd_read_thread::  ok MOCKAIC NCI_MT_DATA %p %p", p_buf , current_packet);
+            if((rx_length = recv(client, current_packet, READ_LIMIT, MSG_PEEK))== -1)
+            {
+                ALOGE("unfcd_read_thread::  Error receiving data ");
+            }else if (rx_length == 0){
+                ALOGE("unfcd_read_thread::  rx_length==0 ");
+                //break;//return NULL;
+            }
+
+//             if(current_packet[0] & 0x0){
+//                 ALOGE("unfcd_read_thread::  ok MOCKAIC NCI_MT_DATA %x %x %x %x", current_packet[0], current_packet[1], current_packet[2], current_packet[3]);
+//                 NCI_MSG_BLD_HDR0 (current_packet, NCI_MT_DATA, NCI_GID_RF_MANAGE);
+                    ALOGE("unfcd_read_thread::  ok MOCKAIC NCI_MT_DATA %x %x %x %x", current_packet[0], current_packet[1], current_packet[2], current_packet[3]);
+                    ALOGE("unfcd_read_thread::  ok MOCKAIC NCI_MT_DATA %p %p", p_buf , current_packet);
+//                 NCI_MSG_BLD_HDR1 (current_packet, NCI_MSG_RF_INTF_ACTIVATED);
+//                                 ALOGE("unfcd_read_thread::  ok MOCKAIC NCI_MT_DATA %x %x %x %x", current_packet[0], current_packet[1], current_packet[2], current_packet[3]);
+//             }else
+//             {
+//                 ALOGE("unfcd_read_thread::  MOCKAIC NCI_MT_NTF %x", current_packet[0]);
+//                 NCI_MSG_BLD_HDR0 (current_packet, NCI_MT_NTF, NCI_GID_RF_MANAGE);
+//                 NCI_MSG_BLD_HDR1 (current_packet, NCI_MSG_RF_INTF_ACTIVATED);
+//             }
+
+        }
+        else
+        {
+            ALOGE( "unfcd_read_thread(): unable to get buffer from GKI p_buf = %p poolid = %d\n", p_buf, USERIAL_POOL_ID);
+            rx_length = 0;  /* paranoia setting */
+            GKI_delay( NO_GKI_BUFFER_RECOVER_TIME );
+            continue;
+        }
+        if (rx_length > 0)
+        {
+            bErrorReported = 0;
+            error_count = 0;
+            iMaxError = 3;
+            if (rx_length > sRxLength)
+                sRxLength = rx_length;
+            p_buf->len = (UINT16)rx_length;
+            GKI_enqueue(&Userial_in_q, p_buf);
+            if (!isLowSpeedTransport)
+                ALOGD_IF((appl_trace_level>=BT_TRACE_LEVEL_DEBUG), "unfcd_read_thread(): enqueued p_buf=%p, count=%d, length=%d\n",
+                            p_buf, Userial_in_q.count, rx_length);
+
+            if (linux_cb.ser_cb != NULL)
+                (*linux_cb.ser_cb)(linux_cb.port, USERIAL_RX_READY_EVT, (tUSERIAL_EVT_DATA *)p_buf);
+
+            GKI_send_event(USERIAL_HAL_TASK, HCISU_EVT);
+        }
+        else
+        {
+            GKI_freebuf( p_buf );
+            if (rx_length == -EAGAIN)
+                continue;
+            else if (rx_length == -1)
+            {
+                ALOGD( "unfcd_read_thread(): exiting\n");
+                break;
+            }
+            else if (rx_length == 0 && !isWake(-1))
+                continue;
+            ++error_count;
+            if (rx_length <= 0 && ((error_count > 0) && ((error_count % iMaxError) == 0)))
+            {
+                if (bErrorReported == 0)
+                {
+                    ALOGE( "unfcd_read_thread(): my_read returned (%d) error count = %d, errno=%d return UNFCD_ERR_EVT\n",
+                            rx_length, error_count, errno);
+                    if (linux_cb.ser_cb != NULL)
+                        (*linux_cb.ser_cb)(linux_cb.port, USERIAL_ERR_EVT, (tUSERIAL_EVT_DATA *)p_buf);
+
+                    GKI_send_event(USERIAL_HAL_TASK, HCISU_EVT);
+                    ++bErrorReported;
+                }
+                if (sRxLength == 0)
+                {
+                    ALOGE( "unfcd_read_thread(): my_read returned (%d) error count = %d, errno=%d exit read thread\n",
+                            rx_length, error_count, errno);
+                    break;
+                }
+            }
+        }
+    } /* for */
+
+    ALOGD( "unfcd_read_thread(): freeing GKI_buffers\n");
+    while ((p_buf = (BT_HDR *) GKI_dequeue (&Userial_in_q)) != NULL)
+    {
+        GKI_freebuf(p_buf);
+        ALOGD("unfcd_read_thread: dequeued buffer from Userial_in_q\n");
+    }
+
+    GKI_exit_task (GKI_get_taskid ());
+    ALOGD( "UNFCD READ: EXITING TASK\n");
+
+    return 0;
+}
 /*******************************************************************************
  **
  ** Function           userial_read_thread
@@ -997,7 +1197,7 @@ UDRV_API void USERIAL_Open(tUSERIAL_PORT port, tUSERIAL_OPEN_CFG *p_cfg, tUSERIA
         if ((linux_cb.sock = open((char*)device_name, O_RDWR | O_NOCTTY )) == -1)
         {
             ALOGI("%s unable to open %s",  __FUNCTION__, device_name);
-            GKI_send_event(NFC_HAL_TASK, NFC_HAL_TASK_EVT_TERMINATE);
+            /*MOCKAIC*/ //GKI_send_event(NFC_HAL_TASK, NFC_HAL_TASK_EVT_TERMINATE);
             goto done_open;
         }
         ALOGD( "sock = %d\n", linux_cb.sock);
@@ -1052,7 +1252,7 @@ UDRV_API void USERIAL_Open(tUSERIAL_PORT port, tUSERIAL_OPEN_CFG *p_cfg, tUSERIA
     linux_cb.ser_cb     = p_cback;
     linux_cb.port = port;
     memcpy(&linux_cb.open_cfg, p_cfg, sizeof(tUSERIAL_OPEN_CFG));
-    GKI_create_task ((TASKPTR)userial_read_thread, USERIAL_HAL_TASK, (INT8*)"USERIAL_HAL_TASK", 0, 0, (pthread_cond_t*)NULL, NULL);
+    /*MOCKAIC*/ GKI_create_task ((TASKPTR)unfcd_read_thread, USERIAL_HAL_TASK, (INT8*)"USERIAL_HAL_TASK", 0, 0, (pthread_cond_t*)NULL, NULL);
 
 
 #if (defined USERIAL_DEBUG) && (USERIAL_DEBUG == TRUE)
@@ -1197,21 +1397,57 @@ UDRV_API UINT16  USERIAL_Write(tUSERIAL_PORT port, UINT8 *p_data, UINT16 len)
 
     doWriteDelay();
     t = clock();
-    while (len != 0 && linux_cb.sock != -1)
-    {
-        ret = write(linux_cb.sock, p_data + total, len);
-        if (ret < 0)
-        {
-            ALOGE("USERIAL_Write len = %d, ret = %d, errno = %d", len, ret, errno);
-            break;
-        }
-        else
-        {
-            ALOGD_IF((appl_trace_level>=BT_TRACE_LEVEL_DEBUG), "USERIAL_Write len = %d, ret = %d", len, ret);
+
+    ALOGE("unfcd_read_thread : port %d \n", port);
+
+    if (port == USERIAL_NFC_CMD){
+        int client , server ;
+
+        if ((server = start_server(UNFCD_PORT+1)) == -1) {
+            ALOGE("unfcd_read_thread : start_server to send cmd activated\n");
+            return 0;
         }
 
-        total += ret;
-        len -= ret;
+        // Listen for main connection
+        while ((client = wait_for_client(server)) != -1)
+        {
+            uint16_t cmd = 1001;
+            //if (flag){
+            ALOGE( "unfcd_read_thread(): send cmd activated\n");
+            ret = write(client,  &cmd, sizeof(cmd));
+
+            if (ret < 0)
+            {
+                ALOGE("USERIAL_Write len = %d, ret = %d, errno = %d", len, ret, errno);
+                break;
+            }
+            else
+            {
+                ALOGD_IF((appl_trace_level>=BT_TRACE_LEVEL_DEBUG), "USERIAL_Write len = %d, ret = %d", len, ret);
+                break;
+            }
+        }
+
+        close(client); close(server);
+
+    }else{
+
+        while (len != 0 && linux_cb.sock != -1)
+        {
+            ret = write(linux_cb.sock, p_data + total, len);
+            if (ret < 0)
+            {
+                ALOGE("USERIAL_Write len = %d, ret = %d, errno = %d", len, ret, errno);
+                break;
+            }
+            else
+            {
+                ALOGD_IF((appl_trace_level>=BT_TRACE_LEVEL_DEBUG), "USERIAL_Write len = %d, ret = %d", len, ret);
+            }
+
+            total += ret;
+            len -= ret;
+        }
     }
     perf_update(&perf_write, clock() - t, total);
 
@@ -1432,6 +1668,41 @@ void userial_close_thread(UINT32 params)
         ALOGD( "%s: already closed (%d)\n", __FUNCTION__, linux_cb.sock);
         pthread_mutex_unlock(&close_thread_mutex);
         return;
+    }
+
+
+        //if (port == USERIAL_NFC_CMD)
+        {
+        int client , server ;
+
+        if ((server = start_server(UNFCD_PORT+1)) == -1) {
+            ALOGE("userial_close_thread : start_server to send cmd activated\n");
+            return 0;
+        }
+
+        // Listen for main connection
+        while ((client = wait_for_client(server)) != -1)
+        {
+            uint16_t cmd = 1002;
+            int ret = 0;
+            //if (flag){
+            ALOGE( "userial_close_thread(): send cmd activated\n");
+            ret = write(client,  &cmd, sizeof(cmd));
+
+            if (ret < 0)
+            {
+                ALOGE("write, ret = %d, errno = %d", ret, errno);
+                break;
+            }
+            else
+            {
+                ALOGD_IF((appl_trace_level>=BT_TRACE_LEVEL_DEBUG), "write, ret = %d", ret);
+                break;
+            }
+        }
+
+        close(client); close(server);
+
     }
 
     send_wakeup_signal();

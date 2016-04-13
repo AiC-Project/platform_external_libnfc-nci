@@ -71,8 +71,10 @@ static void rw_t2t_proc_data (UINT8 conn_id, tNFC_CONN_EVT event, BT_HDR *p_pkt)
     UINT8                   begin_state     = p_t2t->state;
 #endif
 
-    if (  (p_t2t->state == RW_T2T_STATE_IDLE)
-        ||(p_cmd_rsp_info == NULL)  )
+    /*MOCKAIC*/p_t2t->state = RW_T2T_STATE_READ;//RW_T2T_STATE_READ_NDEF;//RW_T2T_STATE_READ_NDEF
+
+    if (  (p_t2t->state == RW_T2T_STATE_IDLE) )
+    /*MOCKAIC*/// ||(p_cmd_rsp_info == NULL)  )
     {
         RW_TRACE_DEBUG2 ("rw_t2t_proc_data - Raw frame event! state: IDLE, conn_id: %u  event: %u",
                            conn_id, event);
@@ -89,22 +91,23 @@ static void rw_t2t_proc_data (UINT8 conn_id, tNFC_CONN_EVT event, BT_HDR *p_pkt)
     /* Stop timer as response is received */
     nfc_stop_quick_timer (&p_t2t->t2_timer);
 
-    RW_TRACE_EVENT2 ("RW RECV [%s]:0x%x RSP", t2t_info_to_str (p_cmd_rsp_info), p_cmd_rsp_info->opcode);
+ /*MOCKAIC beg*/   //RW_TRACE_EVENT2 ("RW RECV [%s]:0x%x RSP", t2t_info_to_str (p_cmd_rsp_info), p_cmd_rsp_info->opcode);
 
-    if (  (p_pkt->len != p_cmd_rsp_info->rsp_len)
-        &&(p_pkt->len != p_cmd_rsp_info->nack_rsp_len)
-        &&(p_t2t->substate != RW_T2T_SUBSTATE_WAIT_SELECT_SECTOR)  )
-    {
-#if (BT_TRACE_VERBOSE == TRUE)
-        RW_TRACE_ERROR1 ("T2T Frame error. state=%s ", rw_t2t_get_state_name (p_t2t->state));
-#else
-        RW_TRACE_ERROR1 ("T2T Frame error. state=0x%02X command=0x%02X ", p_t2t->state);
-#endif
-        /* Retrasmit the last sent command if retry-count < max retry */
-        rw_t2t_process_frame_error ();
-        GKI_freebuf (p_pkt);
-        return;
-    }
+//     if (  (p_pkt->len != p_cmd_rsp_info->rsp_len)
+//         &&(p_pkt->len != p_cmd_rsp_info->nack_rsp_len)
+//         &&(p_t2t->substate != RW_T2T_SUBSTATE_WAIT_SELECT_SECTOR)  )
+//     {
+// #if (BT_TRACE_VERBOSE == TRUE)
+//         RW_TRACE_ERROR1 ("T2T Frame error. state=%s ", rw_t2t_get_state_name (p_t2t->state));
+// #else
+//         RW_TRACE_ERROR1 ("T2T Frame error. state=0x%02X command=0x%02X ", p_t2t->state);
+// #endif
+//         /* Retrasmit the last sent command if retry-count < max retry */
+//         rw_t2t_process_frame_error ();
+//         GKI_freebuf (p_pkt);
+//         return;
+//     }
+/*MOCKAIC end*/
     rw_cb.cur_retry = 0;
 
     /* Assume the data is just the response byte sequence */
@@ -136,8 +139,8 @@ static void rw_t2t_proc_data (UINT8 conn_id, tNFC_CONN_EVT event, BT_HDR *p_pkt)
     {
         evt_data.status = NFC_STATUS_FAILED;
     }
-    else if (p_pkt->len == p_cmd_rsp_info->rsp_len)
-    {
+/*MOCKAIC*///else if (p_pkt->len == p_cmd_rsp_info->rsp_len)
+/*MOCKAIC*///{
         /* If the response length indicates positive response or cannot be known from length then assume success */
         evt_data.status  = NFC_STATUS_OK;
 
@@ -152,10 +155,17 @@ static void rw_t2t_proc_data (UINT8 conn_id, tNFC_CONN_EVT event, BT_HDR *p_pkt)
         case RW_T2T_STATE_READ:
             evt_data.p_data = p_pkt;
             b_release = FALSE;
-            if (p_t2t->block_read == 0)
+            /*MOCKAIC*///if (p_t2t->block_read == 0)
             {
                 p_t2t->b_read_hdr = TRUE;
-                memcpy (p_t2t->tag_hdr,  p, T2T_READ_DATA_LEN);
+                /*MOCKAIC b*/ //memcpy (p_t2t->tag_hdr,  p, T2T_READ_DATA_LEN);
+/*MOCKAIC beg*/
+            	int count;
+                for(count=0; count < p_pkt->len ; count ++ )
+                    RW_TRACE_ERROR1(":::>%x" , p[count]);
+
+                    memcpy (p_t2t->tag_hdr,  p, p_pkt->len);
+                    p_t2t->ndef_msg_len = p_pkt->len ;
             }
             break;
 
@@ -168,47 +178,50 @@ static void rw_t2t_proc_data (UINT8 conn_id, tNFC_CONN_EVT event, BT_HDR *p_pkt)
             }
             break;
 
-        default:
+         default:
             /* NDEF/other Tlv Operation/Format Tag/Config Tag as Read only
              * Check if Positive response to previous write command */
-            if (  (p_cmd_rsp_info->opcode == T2T_CMD_WRITE)
-                &&((*p & 0x0f) != T2T_RSP_ACK)  )
+//             if (  (p_cmd_rsp_info->opcode == T2T_CMD_WRITE)
+//                 &&((*p & 0x0f) != T2T_RSP_ACK)  )
+//             {
+//                 RW_TRACE_EVENT1 ("rw_t2t_proc_data - Received NACK response(0x%x) to WRITE CMD", (*p & 0x0f));
+//                 evt_data.status = NFC_STATUS_REJECTED;
+//             }
+//             else
             {
-                RW_TRACE_EVENT1 ("rw_t2t_proc_data - Received NACK response(0x%x) to WRITE CMD", (*p & 0x0f));
-                evt_data.status = NFC_STATUS_REJECTED;
-            }
-            else
-            {
-                b_notify = FALSE;
-                rw_t2t_handle_rsp (p);
+                b_notify = TRUE;
+                 rw_t2t_handle_rsp (p);
             }
             break;
         }
-    }
-    else
-    {
-        evt_data.p_data = p_pkt;
-        if (p_t2t->state == RW_T2T_STATE_READ)
-            b_release = FALSE;
-
-        RW_TRACE_EVENT1 ("rw_t2t_proc_data - Received NACK response(0x%x)", (*p & 0x0f));
-        /* Negative response to the command sent */
-        evt_data.status = NFC_STATUS_REJECTED;
-    }
+//	   }
+//     else
+//     {
+//         evt_data.p_data = p_pkt;
+//         if (p_t2t->state == RW_T2T_STATE_READ)
+//             b_release = FALSE;
+//
+//         RW_TRACE_EVENT1 ("rw_t2t_proc_data - Received NACK response(0x%x)", (*p & 0x0f));
+//         /* Negative response to the command sent */
+//         evt_data.status = NFC_STATUS_REJECTED;
+//     }
+/*MOCKAIC end*/
 
     if (b_notify)
     {
-        rw_event = rw_t2t_info_to_event (p_cmd_rsp_info);
-
+        //rw_event = rw_t2t_info_to_event (p_cmd_rsp_info);
+        rw_event = RW_T2T_NDEF_DETECT_EVT ;
+        RW_TRACE_EVENT1 ("rw_t2t_proc_data - Received NACK response(0x%x)", (*p & 0x0f));
         if (rw_event == RW_T2T_NDEF_DETECT_EVT)
         {
+                    RW_TRACE_EVENT0 ("rw_t2t_proc_data - rw_event == RW_T2T_NDEF_DETECT_EVT");
             ndef_data.status    = evt_data.status;
             ndef_data.protocol  = NFC_PROTOCOL_T2T;
             ndef_data.flags     = RW_NDEF_FL_UNKNOWN;
             if (p_t2t->substate == RW_T2T_SUBSTATE_WAIT_READ_LOCKS)
                 ndef_data.flags = RW_NDEF_FL_FORMATED;
-            ndef_data.max_size  = 0;
-            ndef_data.cur_size  = 0;
+            ndef_data.max_size  = 46;/*MOCKAIC*/ //0;
+            ndef_data.cur_size  = p_pkt->len; /*MOCKAIC*/
             /* Move back to idle state */
             rw_t2t_handle_op_complete ();
             (*rw_cb.p_cback) (rw_event, (tRW_DATA *) &ndef_data);
@@ -217,6 +230,7 @@ static void rw_t2t_proc_data (UINT8 conn_id, tNFC_CONN_EVT event, BT_HDR *p_pkt)
         {
             /* Move back to idle state */
             rw_t2t_handle_op_complete ();
+            /*MOCKAIC*/rw_event = RW_T2T_NDEF_READ_EVT ;
             (*rw_cb.p_cback) (rw_event, (tRW_DATA *) &evt_data);
         }
     }
@@ -247,6 +261,7 @@ void rw_t2t_conn_cback (UINT8 conn_id, tNFC_CONN_EVT event, tNFC_CONN *p_data)
     tRW_T2T_CB  *p_t2t  = &rw_cb.tcb.t2t;
     tRW_READ_DATA       evt_data;
 
+    event = NFC_DATA_CEVT ;
     RW_TRACE_DEBUG2 ("rw_t2t_conn_cback: conn_id=%i, evt=%i", conn_id, event);
     /* Only handle static conn_id */
     if (conn_id != NFC_RF_CONN_ID)
@@ -286,8 +301,8 @@ void rw_t2t_conn_cback (UINT8 conn_id, tNFC_CONN_EVT event, tNFC_CONN *p_data)
         break;
 
     case NFC_DATA_CEVT:
-        if (  (p_data != NULL)
-            &&(p_data->data.status == NFC_STATUS_OK)  )
+/*MOCKAIC*///         if (  (p_data != NULL)
+/*MOCKAIC*///             &&(p_data->data.status == NFC_STATUS_OK)  )
         {
             rw_t2t_proc_data (conn_id, event, (BT_HDR *) (p_data->data.p_data));
             break;
@@ -730,6 +745,7 @@ tNFC_STATUS rw_t2t_read (UINT16 block)
         RW_TRACE_EVENT1 ("rw_t2t_read Sent Command for Block: %u", block);
     }
 
+    /*MOCKAIC*/status = NFC_STATUS_OK ;
     return status;
 }
 

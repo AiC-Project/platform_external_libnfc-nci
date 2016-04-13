@@ -115,6 +115,9 @@ tNFA_STATUS NFA_Enable (tNFA_DM_CBACK        *p_dm_cback,
         p_msg->p_conn_cback = p_conn_cback;
 
         nfa_sys_sendmsg (p_msg);
+        /*MOCKAIC*/     nfa_dm_enable     (p_msg);
+        /*MOCKAIC*/ 	nfa_dm_ndef_reg_hdlr(p_msg);
+        /*MOCKAIC*/ 	nfa_dm_notify_activation_status(        NFA_STATUS_OK, NULL);
 
         return (NFA_STATUS_OK);
     }

@@ -946,10 +946,10 @@ UINT8 *GKI_map_taskname (UINT8 task_id)
 *******************************************************************************/
 void GKI_enable (void)
 {
-    GKI_TRACE_0("GKI_enable");
+    //GKI_TRACE_0("GKI_enable");
     pthread_mutex_unlock(&gki_cb.os.GKI_mutex);
 /* 	pthread_mutex_xx is nesting save, no need for this: already_disabled = 0; */
-    GKI_TRACE_0("Leaving GKI_enable");
+    //GKI_TRACE_0("Leaving GKI_enable");
     return;
 }
 

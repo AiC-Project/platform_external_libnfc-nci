@@ -19,7 +19,7 @@
 #include <stdarg.h>
 #include <errno.h>
 
-#define GKI_DEBUG   FALSE
+#define GKI_DEBUG   TRUE
 
 #include <pthread.h>  /* must be 1st header defined  */
 #include <time.h>
@@ -55,7 +55,7 @@ tGKI_CB   gki_cb;
 
 /* works only for 1ms to 1000ms heart beat ranges */
 #define LINUX_SEC (1000/TICKS_PER_SEC)
-// #define GKI_TICK_TIMER_DEBUG
+#define GKI_TICK_TIMER_DEBUG
 
 #define LOCK(m)  pthread_mutex_lock(&m)
 #define UNLOCK(m) pthread_mutex_unlock(&m)
@@ -924,10 +924,10 @@ INT8 *GKI_map_taskname (UINT8 task_id)
 *******************************************************************************/
 void GKI_enable (void)
 {
-    GKI_TRACE_0("GKI_enable");
+    //GKI_TRACE_0("GKI_enable");
     pthread_mutex_unlock(&gki_cb.os.GKI_mutex);
 /* 	pthread_mutex_xx is nesting save, no need for this: already_disabled = 0; */
-    GKI_TRACE_0("Leaving GKI_enable");
+    //GKI_TRACE_0("Leaving GKI_enable");
     return;
 }
 

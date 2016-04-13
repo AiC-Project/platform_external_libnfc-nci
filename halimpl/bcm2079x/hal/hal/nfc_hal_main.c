@@ -236,16 +236,18 @@ void nfc_hal_main_pre_init_done (tHAL_NFC_STATUS status)
 {
     HAL_TRACE_DEBUG1 ("nfc_hal_main_pre_init_done () status = %d", status);
 
-    if (status != HAL_NFC_STATUS_OK)
+    /*MOCKAIC beg*/
+    /*if (status != HAL_NFC_STATUS_OK)
     {
         nfc_hal_main_handle_terminate ();
 
-        /* Close uart */
+        /// Close uart 
         USERIAL_Close (USERIAL_NFC_PORT);
-    }
+    }*/
+    /*MOCKAIC end*/
 
     /* Notify NFC Task the status of initialization */
-    nfc_hal_cb.p_stack_cback (HAL_NFC_OPEN_CPLT_EVT, status);
+    /*MOCKAIC*/nfc_hal_cb.p_stack_cback (HAL_NFC_OPEN_CPLT_EVT, HAL_NFC_STATUS_OK);
 }
 
 /*******************************************************************************
@@ -589,6 +591,8 @@ UINT32 nfc_hal_main_task (UINT32 param)
             HAL_TRACE_DEBUG0 ("NFC_HAL_TASK got NFC_HAL_TASK_EVT_INITIALIZE signal. Opening NFC transport...");
 
             nfc_hal_main_open_transport ();
+            /*MOCKAIC*/ GKI_send_event (NFC_HAL_TASK, NFC_HAL_TASK_EVT_MBOX);
+			HAL_TRACE_DEBUG0 ("NFC_HAL_TASK send NFC_HAL_TASK_EVT_MBOX");
         }
 
         /* Check for terminate event */
@@ -632,12 +636,20 @@ UINT32 nfc_hal_main_task (UINT32 param)
                 switch (p_msg->event & NFC_EVT_MASK)
                 {
                 case NFC_HAL_EVT_TO_NFC_NCI:
+                    HAL_TRACE_DEBUG0 ("NFC_HAL_TASK_EVT_MBOX got NFC_HAL_EVT_TO_NFC_NCI");
+
                     nfc_hal_main_send_message (p_msg);
+                    /*MOCKAIC*/ //GKI_send_event (NFC_HAL_TASK, NFC_HAL_TASK_EVT_DATA_RDY);
+
+                    nfc_hal_cb.p_data_cback (p_msg->len, (UINT8 *) ((p_msg + 1)
+                                            + p_msg->offset));
+                    /*MOCKAIC*/ HAL_TRACE_DEBUG0 ("NFC_HAL_TASK send NFC_HAL_TASK_EVT_DATA_RDY");
                     /* do not free buffer. NCI VS code may keep it for processing later */
                     free_msg = FALSE;
                     break;
 
                 case NFC_HAL_EVT_POST_CORE_RESET:
+                    HAL_TRACE_DEBUG0 ("NFC_HAL_TASK_EVT_MBOX got NFC_HAL_EVT_POST_CORE_RESET");
                     NFC_HAL_SET_INIT_STATE (NFC_HAL_INIT_STATE_W4_POST_INIT_DONE);
 
                     /* set NCI Control packet size from CORE_INIT_RSP */
@@ -655,19 +667,24 @@ UINT32 nfc_hal_main_task (UINT32 param)
                     break;
 
                 case NFC_HAL_EVT_TO_START_QUICK_TIMER:
+                    HAL_TRACE_DEBUG0 ("NFC_HAL_TASK_EVT_MBOX got NFC_HAL_EVT_TO_START_QUICK_TIMER");
                     GKI_start_timer (NFC_HAL_QUICK_TIMER_ID, ((GKI_SECS_TO_TICKS (1) / QUICK_TIMER_TICKS_PER_SEC)), TRUE);
                     break;
 
                 case NFC_HAL_EVT_HCI:
+                    HAL_TRACE_DEBUG0 ("NFC_HAL_TASK_EVT_MBOX got NFC_HAL_EVT_HCI");
                     nfc_hal_hci_evt_hdlr ((tNFC_HAL_HCI_EVENT_DATA *) p_msg);
                     break;
 
                 case NFC_HAL_EVT_PRE_DISCOVER:
-                    NFC_HAL_SET_INIT_STATE(NFC_HAL_INIT_STATE_W4_PREDISCOVER_DONE);
-                    nfa_hal_send_pre_discover_cfg ();
+                    HAL_TRACE_DEBUG0 ("NFC_HAL_TASK_EVT_MBOX got NFC_HAL_EVT_PRE_DISCOVER");
+                    //NFC_HAL_SET_INIT_STATE(NFC_HAL_INIT_STATE_W4_PREDISCOVER_DONE);
+                    //nfa_hal_send_pre_discover_cfg ();
+                    /*MOKCAIC*/USERIAL_Write (USERIAL_NFC_CMD, 0x01, 1) ;
                     break;
 
                 case NFC_HAL_EVT_CONTROL_GRANTED:
+                    HAL_TRACE_DEBUG0 ("NFC_HAL_TASK_EVT_MBOX got NFC_HAL_EVT_CONTROL_GRANTED");
                     nfc_hal_dm_send_pend_cmd ();
                     break;
 
@@ -680,33 +697,76 @@ UINT32 nfc_hal_main_task (UINT32 param)
             }
         }
 
+        int flag_ready = 0;
         /* Data waiting to be read from serial port */
         if (event & NFC_HAL_TASK_EVT_DATA_RDY)
         {
-            while (TRUE)
+            //while (TRUE)
             {
+                HAL_TRACE_DEBUG0 ("NFC_HAL_TASK_EVT_DATA_RDY got NFC_HAL_TASK_EVT_DATA_RDY");
                 /* Read one byte to see if there is anything waiting to be read */
                 if (USERIAL_Read (USERIAL_NFC_PORT, &byte, 1) == 0)
                 {
                     break;
+                }else{
+                    HAL_TRACE_DEBUG1 ("NFC_HAL_TASK_EVT_DATA_RDY got NFC_HAL_TASK_EVT_DATA_RDY and byte !!!!!!!!!!! %d ", byte);
                 }
 
-                if (nfc_hal_nci_receive_msg (byte))
+                //if (nfc_hal_nci_receive_msg (byte))
+
+                //nfc_hal_nci_receive_msg (byte);
+                    UINT16      len;
+
+                tNFC_HAL_NCIT_CB *p_cb = &(nfc_hal_cb.ncit_cb);
+                p_cb->rcv_state = NFC_HAL_RCV_NCI_PAYLOAD_ST;
+
+                /* Initialize rx parameters */
+                p_cb->rcv_state = NFC_HAL_RCV_NCI_HDR_ST;
+                //p_cb->rcv_len   = NCI_MSG_HDR_SIZE;
+                /*MOCKAIC*/p_cb->rcv_len   = byte;
+
+                /* Start of new message. Allocate a buffer for message */
+                if ((p_cb->p_rcv_msg = (NFC_HDR *) GKI_getpoolbuf (NFC_HAL_NCI_POOL_ID)) != NULL)
                 {
+                    /* Initialize NFC_HDR */
+                    p_cb->p_rcv_msg->len    = 0;
+                    p_cb->p_rcv_msg->event  = 0;
+                    p_cb->p_rcv_msg->offset = 0;
+
+                    *((UINT8 *) (p_cb->p_rcv_msg + 1) + p_cb->p_rcv_msg->offset + p_cb->p_rcv_msg->len++) = byte;
+                     HAL_TRACE_DEBUG0 ("NFC_HAL_TASK_EVT_DATA_RDY Initialize NFC_HDR");
+                }
+                else
+                {
+                    HAL_TRACE_ERROR0 ("Unable to allocate buffer for incoming NCI message.");
+                }
+                p_cb->rcv_len--;
+
+                if (p_cb->rcv_len > 0)
+                {
+                     HAL_TRACE_DEBUG0 ("NFC_HAL_TASK_EVT_DATA_RDY p_cb->rcv_len > 0");
+                /* Read in the rest of the message */
+                    len = USERIAL_Read (USERIAL_NFC_PORT, ((UINT8 *) (p_cb->p_rcv_msg + 1) + p_cb->p_rcv_msg->offset + p_cb->p_rcv_msg->len),  p_cb->rcv_len);
+                    p_cb->p_rcv_msg->len    += len;
+                    p_cb->rcv_len           -= len;
+                }
+
+                {
+                    HAL_TRACE_DEBUG0 ("NFC_HAL_TASK_EVT_DATA_RDY got byte");
                     /* complete of receiving NCI message */
-                    nfc_hal_nci_assemble_nci_msg ();
-                    if (nfc_hal_cb.ncit_cb.p_rcv_msg)
+                    //nfc_hal_nci_assemble_nci_msg ();
+                    //if (nfc_hal_cb.ncit_cb.p_rcv_msg)
                     {
-                        if (nfc_hal_nci_preproc_rx_nci_msg (nfc_hal_cb.ncit_cb.p_rcv_msg))
+                        //if (nfc_hal_nci_preproc_rx_nci_msg (nfc_hal_cb.ncit_cb.p_rcv_msg))
                         {
                             /* Send NCI message to the stack */
                             nfc_hal_send_nci_msg_to_nfc_task (nfc_hal_cb.ncit_cb.p_rcv_msg);
                         }
-                        else
-                        {
-                            if (nfc_hal_cb.ncit_cb.p_rcv_msg)
-                                GKI_freebuf(nfc_hal_cb.ncit_cb.p_rcv_msg);
-                        }
+//                         else
+//                         {
+//                             if (nfc_hal_cb.ncit_cb.p_rcv_msg)
+//                                 GKI_freebuf(nfc_hal_cb.ncit_cb.p_rcv_msg);
+//                         }
                         nfc_hal_cb.ncit_cb.p_rcv_msg = NULL;
                     }
                 }

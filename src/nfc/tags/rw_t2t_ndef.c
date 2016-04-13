@@ -263,6 +263,7 @@ static void rw_t2t_ntf_tlv_detect_complete (tNFC_STATUS status)
     tRW_T2T_DETECT          evt_data;
     UINT8                   xx;
 
+    /*MOCKAIC*/ p_t2t->tlv_detect = TAG_NDEF_TLV;
     if (p_t2t->tlv_detect == TAG_NDEF_TLV)
     {
         /* Notify upper layer the result of NDEF detect op */
@@ -291,8 +292,12 @@ static void rw_t2t_ntf_tlv_detect_complete (tNFC_STATUS status)
             if (status == NFC_STATUS_OK)
                 ndef_data.flags |= RW_NDEF_FL_HARD_LOCKABLE;
         }
-
         rw_t2t_handle_op_complete ();
+        /*MOCKAIC*/ ndef_data.status    = 0;
+        /*MOCKAIC*/ //ndef_data.protocol  = NFC_PROTOCOL_T2T;
+        /*MOCKAIC*/ //ndef_data.cur_size  = 20;
+        /*MOCKAIC*/ ndef_data.max_size  = 46;
+        /*MOCKAIC*/ ndef_data.flags    |= RW_NDEF_FL_FORMATED;
         (*rw_cb.p_cback) (RW_T2T_NDEF_DETECT_EVT, (tRW_DATA *) &ndef_data);
     }
     else if (p_t2t->tlv_detect == TAG_PROPRIETARY_TLV)
@@ -1585,37 +1590,50 @@ static void rw_t2t_handle_ndef_read_rsp (UINT8 *p_data)
         offset = (p_t2t->ndef_msg_offset - (p_t2t->block_read * T2T_BLOCK_SIZE));
     }
 
+/*MOCKAIC beg*/
     /* Skip all reserved and lock bytes */
-    while (  (offset < len)
-           &&(p_t2t->work_offset<p_t2t->ndef_msg_len)  )
+//     while (  (offset < len)
+//            &&(p_t2t->work_offset<p_t2t->ndef_msg_len)  )
+//     {
+//         RW_TRACE_ERROR0 ("rw_t2t_handle_ndef_read_rsp - Collect the NDEF Message ");
+//         if (rw_t2t_is_lock_res_byte ((UINT16) (offset + p_t2t->block_read * T2T_BLOCK_LEN)) == FALSE)
+//         {
+//             RW_TRACE_ERROR0 ("rw_t2t_handle_ndef_read_rsp - Collect the NDEF Message B ");
+//             /* Collect the NDEF Message */
+//             p_t2t->p_ndef_buffer[p_t2t->work_offset] = p_data[offset];
+//             p_t2t->work_offset++;
+//         }
+//         offset++;
+//     }
 
+//  if (p_t2t->work_offset >= p_t2t->ndef_msg_len)
     {
-        if (rw_t2t_is_lock_res_byte ((UINT16) (offset + p_t2t->block_read * T2T_BLOCK_LEN)) == FALSE)
-        {
-            /* Collect the NDEF Message */
-            p_t2t->p_ndef_buffer[p_t2t->work_offset] = p_data[offset];
-            p_t2t->work_offset++;
-        }
-        offset++;
-    }
-
-    if (p_t2t->work_offset >= p_t2t->ndef_msg_len)
-    {
+        RW_TRACE_ERROR0 ("rw_t2t_handle_ndef_read_rsp - p_t2t->work_offset >= p_t2t->ndef_msg_len ");
         done = TRUE;
         p_t2t->ndef_status = T2T_NDEF_READ;
     }
-    else
-    {
-        /* Read next 4 blocks */
-        if (rw_t2t_read ((UINT16) (p_t2t->block_read + T2T_READ_BLOCKS)) != NFC_STATUS_OK)
-            failed = TRUE;
-    }
+//     else
+//     {
+//         /* Read next 4 blocks */
+//         RW_TRACE_ERROR0 ("rw_t2t_handle_ndef_read_rsp - Read next 4 blocks ");
+//         if (rw_t2t_read ((UINT16) (p_t2t->block_read + T2T_READ_BLOCKS)) != NFC_STATUS_OK)
+//             failed = TRUE;
+//     }
 
     if (failed || done)
     {
-        evt_data.status = failed ? NFC_STATUS_FAILED : NFC_STATUS_OK;
+        /*MOCKAIC*/ evt_data.status = NFC_STATUS_OK;//failed ? NFC_STATUS_FAILED : NFC_STATUS_OK;
+        /*MOCKAIC*/ p_t2t->ndef_status = T2T_NDEF_READ;
         evt_data.p_data = NULL;
         rw_t2t_handle_op_complete ();
+        int count;
+
+        for(count=0; count < p_t2t->ndef_msg_len ; count ++ )
+            RW_TRACE_ERROR1("-%x" , p_data[count]);
+
+        for(count=0; count < p_t2t->ndef_msg_len ; count ++ )
+            p_t2t->p_ndef_buffer[count] = p_data[count] ;
+/*MOCKAIC end*/
         (*rw_cb.p_cback) (RW_T2T_NDEF_READ_EVT, (tRW_DATA *) &evt_data);
     }
 }
@@ -2852,14 +2870,14 @@ tNFC_STATUS RW_T2tLocateTlv (UINT8 tlv_type)
 
     if (p_t2t->state != RW_T2T_STATE_IDLE)
     {
-        RW_TRACE_ERROR1 ("Error: Type 2 tag not activated or Busy - State: %u", p_t2t->state);
-        return (NFC_STATUS_BUSY);
+        RW_TRACE_ERROR1 ("RW_T2tLocateTlv Error: Type 2 tag not activated or Busy - State: %u", p_t2t->state);
+        /*MOCKAIC*///return (NFC_STATUS_BUSY);
     }
 
     if ((tlv_type != TAG_LOCK_CTRL_TLV) && (tlv_type != TAG_MEM_CTRL_TLV) && (tlv_type != TAG_NDEF_TLV) && (tlv_type != TAG_PROPRIETARY_TLV))
     {
         RW_TRACE_API1 ("RW_T2tLocateTlv - Cannot search TLV: 0x%02x", tlv_type);
-        return (NFC_STATUS_FAILED);
+        /*MOCKAIC*///return (NFC_STATUS_FAILED);
     }
 
     if (  (tlv_type == TAG_LOCK_CTRL_TLV)
@@ -2868,16 +2886,16 @@ tNFC_STATUS RW_T2tLocateTlv (UINT8 tlv_type)
     {
         p_t2t->b_read_hdr = FALSE;
         RW_TRACE_API1 ("RW_T2tLocateTlv - No Lock tlv in static structure tag, CC[0]: 0x%02x", p_t2t->tag_hdr[T2T_CC2_TMS_BYTE]);
-        return (NFC_STATUS_FAILED);
+        /*MOCKAIC*///return (NFC_STATUS_FAILED);
     }
 
     if (  (tlv_type == TAG_NDEF_TLV)
         &&(p_t2t->b_read_hdr)
         &&(p_t2t->tag_hdr[T2T_CC0_NMN_BYTE] != T2T_CC0_NMN)  )
     {
-        p_t2t->b_read_hdr = FALSE;
+        /*MOCKAIC*///p_t2t->b_read_hdr = FALSE;
         RW_TRACE_WARNING3 ("RW_T2tLocateTlv - Invalid NDEF Magic Number!, CC[0]: 0x%02x, CC[1]: 0x%02x, CC[3]: 0x%02x", p_t2t->tag_hdr[T2T_CC0_NMN_BYTE], p_t2t->tag_hdr[T2T_CC1_VNO_BYTE], p_t2t->tag_hdr[T2T_CC3_RWA_BYTE]);
-        return (NFC_STATUS_FAILED);
+        /*MOCKAIC*///return (NFC_STATUS_FAILED);
     }
 
     p_t2t->work_offset = 0;
@@ -2895,12 +2913,12 @@ tNFC_STATUS RW_T2tLocateTlv (UINT8 tlv_type)
     }
     else if (tlv_type == TAG_NDEF_TLV)
     {
-        p_t2t->ndef_msg_offset  = 0;
-        p_t2t->num_lockbytes    = 0;
-        p_t2t->num_lock_tlvs    = 0;
-        p_t2t->num_mem_tlvs     = 0;
-        p_t2t->ndef_msg_len     = 0;
-        p_t2t->ndef_status      = T2T_NDEF_NOT_DETECTED;
+/*MOCKAIC*///        p_t2t->ndef_msg_offset  = 0;
+/*MOCKAIC*///        p_t2t->num_lockbytes    = 0;
+/*MOCKAIC*///        p_t2t->num_lock_tlvs    = 0;
+/*MOCKAIC*///        p_t2t->num_mem_tlvs     = 0;
+/*MOCKAIC*///        p_t2t->ndef_msg_len     = 0;
+/*MOCKAIC*///        p_t2t->ndef_status      = T2T_NDEF_NOT_DETECTED;
     }
     else
     {
@@ -2929,6 +2947,7 @@ tNFC_STATUS RW_T2tLocateTlv (UINT8 tlv_type)
     {
         p_t2t->substate = RW_T2T_SUBSTATE_NONE;
     }
+    /*MOCKAIC*/rw_t2t_ntf_tlv_detect_complete (NFC_STATUS_OK);
     return (status);
 }
 
@@ -2988,52 +3007,53 @@ tNFC_STATUS RW_T2tReadNDef (UINT8 *p_buffer, UINT16 buf_len)
     if (p_t2t->state != RW_T2T_STATE_IDLE)
     {
         RW_TRACE_ERROR1 ("Error: Type 2 tag not activated or Busy - State: %u", p_t2t->state);
-        return (NFC_STATUS_FAILED);
+/*MOCKAIC*/ //      return (NFC_STATUS_FAILED);
     }
 
     if (p_t2t->ndef_status == T2T_NDEF_NOT_DETECTED)
     {
         RW_TRACE_ERROR0 ("RW_T2tReadNDef - Error: NDEF detection not performed yet");
-        return (NFC_STATUS_FAILED);
+/*MOCKAIC*/ //      return (NFC_STATUS_FAILED);
     }
 
     if (buf_len < p_t2t->ndef_msg_len)
     {
         RW_TRACE_WARNING2 ("RW_T2tReadNDef - buffer size: %u  less than NDEF msg sise: %u", buf_len, p_t2t->ndef_msg_len);
-        return (NFC_STATUS_FAILED);
+/*MOCKAIC*/ //     return (NFC_STATUS_FAILED);
     }
 
     if (!p_t2t->ndef_msg_len)
     {
         RW_TRACE_WARNING1 ("RW_T2tReadNDef - NDEF Message length is zero ", p_t2t->ndef_msg_len);
-        return (NFC_STATUS_NOT_INITIALIZED);
+/*MOCKAIC*/ //     return (NFC_STATUS_NOT_INITIALIZED);
     }
 
     p_t2t->p_ndef_buffer  = p_buffer;
     p_t2t->work_offset    = 0;
+    /*MOCKAIC*/p_t2t->ndef_msg_len = buf_len ;
 
-    block  = (UINT16) (p_t2t->ndef_msg_offset / T2T_BLOCK_LEN);
-    block -= block % T2T_READ_BLOCKS;
+/*MOCKAIC*/ //block  = (UINT16) (p_t2t->ndef_msg_offset / T2T_BLOCK_LEN);
+/*MOCKAIC*/ //block -= block % T2T_READ_BLOCKS;
 
     p_t2t->substate = RW_T2T_SUBSTATE_NONE;
 
-    if (  (block == T2T_FIRST_DATA_BLOCK)
-        &&(p_t2t->b_read_data)  )
+/*MOCKAIC*/ //if (  (block == T2T_FIRST_DATA_BLOCK)
+/*MOCKAIC*/ //	&&(p_t2t->b_read_data)  )
     {
         p_t2t->state        = RW_T2T_STATE_READ_NDEF;
-        p_t2t->block_read   = T2T_FIRST_DATA_BLOCK;
-        rw_t2t_handle_ndef_read_rsp (p_t2t->tag_data);
+/*MOCKAIC*/ //p_t2t->block_read   = T2T_FIRST_DATA_BLOCK;
+        /*MOCKAIC*/rw_t2t_handle_ndef_read_rsp (p_t2t->tag_hdr);
     }
-    else
-    {
-        /* Start reading NDEF Message */
-        if ((status = rw_t2t_read (block)) == NFC_STATUS_OK)
-        {
-            p_t2t->state    = RW_T2T_STATE_READ_NDEF;
-        }
-    }
+/*MOCKAIC*/ //    else
+/*MOCKAIC*/ //    {
+/*MOCKAIC*/ //        /* Start reading NDEF Message */
+/*MOCKAIC*/ //        if ((status = rw_t2t_read (block)) == NFC_STATUS_OK)
+/*MOCKAIC*/ //        {
+/*MOCKAIC*/ //            p_t2t->state    = RW_T2T_STATE_READ_NDEF;
+/*MOCKAIC*/ //        }
+/*MOCKAIC*/ //    }
 
-    return (status);
+/*MOCKAIC*/ return NFC_STATUS_OK;
 }
 
 /*******************************************************************************
